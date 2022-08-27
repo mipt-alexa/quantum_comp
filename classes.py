@@ -98,17 +98,13 @@ class MPO:
         """ This special method implements the action of operator onto the MPS in place.
 
         Args:
-            state: The MPS to which operator is applied.
+            state: The MPS to which the operator is applied.
 
         """
         if self.len != state.len:
             raise Exception("Ranks of the MPO and MPS do not match")
 
-        self.components[0] = jnp.tensordot(state.components[0], self.components[0], 1)
-        shape = self.components[0].shape
-        self.components[0] = jnp.reshape(self.components[0], (shape[0], shape[1] + shape[2]))
-
-        for i in range(1, self.len):
-            self.components[i] = jnp.tensordot(self.components[i], state.components[i], [[1], [1]])
-            shape = self.components[i].shape
-            self.components[i] = jnp.reshape(self.components[i], (shape[0] + shape[1], shape[4], shape[3] + shape[2]))
+        for i in range(0, self.len):
+            state.components[i] = jnp.tensordot(self.components[i], state.components[i], [[1], [1]])
+            shape = state.components[i].shape
+            state.components[i] = jnp.reshape(state.components[i], (shape[0]*shape[3], shape[2], shape[1]*shape[4]))
