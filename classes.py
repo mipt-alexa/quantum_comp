@@ -11,17 +11,15 @@ class MPS:
     def __init__(self, tensors: List[jnp.ndarray]):
         """
         Args:
-            tensors: The list of tensors in which the MPS is decomposed. Each tensor is expected to have 3 indexes,
-                     for the first and the last ones corresponding dimensions are expected to be 1.
+            tensors: The list of tensors in which the MPS is decomposed. Each tensor is expected to have 3 indices,
+                     for the first and the last ones corresponding dimensions are expected to be equal to 1.
         """
         self.components = tensors
         self.len = len(tensors)
 
     def __repr__(self):
         """
-        This special method represents the MPS object by the shape and
-        elements of its components.
-
+        This special method represents the MPS object by the shape and elements of its components.
         """
         rep = 'MPS( '
         for i in range(self.len):
@@ -93,17 +91,15 @@ class MPO:
     def __init__(self, tensors: List[jnp.ndarray]):
         """
         Args:
-            tensors: The list of tensors in which the MPO is decomposed. Each tensor is expected to have 4 indexes,
-                     for the first and the last ones corresponding dimensions are expected to be 1.
+            tensors: The list of tensors in which the MPO is decomposed. Each tensor is expected to have 4 indices,
+                     for the first and the last ones corresponding dimensions are expected to be equal to 1.
         """
         self.components = tensors
         self.len = len(tensors)
 
     def __repr__(self):
         """
-        This special method represents the MPO object by the shape and
-        elements of its components.
-
+        This special method represents the MPO object by the shape and elements of its components.
         """
         rep = 'MPO( '
         for i in range(self.len):
@@ -112,7 +108,8 @@ class MPO:
         return rep + ')'
 
     def __call__(self, state: MPS):
-        """ This special method implements the action of operator onto the MPS in place.
+        """
+        This special method implements the action of operator onto the MPS in place.
 
         Args:
             state: The MPS to which the operator is applied.
