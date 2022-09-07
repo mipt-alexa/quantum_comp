@@ -25,31 +25,13 @@ class MPS:
         """
         rep = 'MPS( '
         for i in range(self.len):
-            rep += "component " + str(i) + " of size " + str(self.components[i].shape) + '\n' + str(
-                self.components[i]) + '\n'
+            rep += "component " + str(i) + " of size " + str(self.components[i].shape) + '\n'
+                   # + str(self.components[i])
         return rep + ')'
 
-    def dot_for_2_legs(self, rhs):
-        """This function computes scalar product.
-
-        Args:
-            rhs (MPS): The second multiplier.
-
-        Returns:
-            jaxlib.xla_extension.DeviceArray: The return value.
-
-        """
-        if self.len != rhs.len:
-            raise Exception("Ranks do not match")
-
-        result = jnp.tensordot(self.components[0], rhs.components[0], [[0], [0]])
-        for i in range(1, self.len):
-            result = jnp.tensordot(result, self.components[i], [[0], [0]])
-            result = jnp.tensordot(result, rhs.components[i], [[0, 1], [0, 1]])
-        return result
-
     def dot(self, rhs):
-        """This experimental function computes scalar product.
+        """
+        This function computes scalar product of two MPS.
 
         Args:
             rhs (MPS): The second multiplier.
@@ -70,6 +52,41 @@ class MPS:
 
             result = jnp.tensordot(result, rhs.components[i], [[2, 3], [0, 1]])
         return result
+
+    def left_canonical(self):
+        """
+        This function performs decomposition of MPS to the left canonical form in place.
+        """
+        for i in range(self.len-1):
+            shape = self.components[i].shape
+            a = jnp.reshape(self.components[i], (shape[0]*shape[1], shape[2]))
+
+            u, s, v = jnp.linalg.svd(a)
+            s_matrix = np.zeros((u.shape[0], v.shape[0]))
+            np.fill_diagonal(s_matrix, s)
+
+            u = jnp.reshape(u, (shape[0], shape[1], u.shape[1]))
+            rhs = jnp.tensordot(s_matrix, v, 1)
+            self.components[i] = u
+            self.components[i+1] = jnp.tensordot(rhs, self.components[i+1], 1)
+
+    def right_canonical(self):
+        """
+        This function performs decomposition of MPS to the right canonical form in place.
+        """
+        for i in range(self.len-1, 0, -1):
+            print(i)
+            shape = self.components[i].shape
+            a = jnp.reshape(self.components[i], (shape[0], shape[1]*shape[2]))
+
+            u, s, v = jnp.linalg.svd(a)
+            s_matrix = np.zeros((u.shape[0], v.shape[0]))
+            np.fill_diagonal(s_matrix, s)
+
+            v = jnp.reshape(v, (v.shape[0], shape[1], shape[2]))
+            lhs = jnp.tensordot(u, s_matrix, 1)
+            self.components[i] = v
+            self.components[i-1] = jnp.tensordot(self.components[i-1], lhs, 1)
 
 
 class MPO:
