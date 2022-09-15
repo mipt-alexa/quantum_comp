@@ -50,7 +50,7 @@ class MPS:
             # + str(self.components[i])
         return rep + ')'
 
-    def dot(self, rhs):
+    def dot(self, rhs) -> float:
         """
         This function computes scalar product of two MPS.
 
@@ -58,11 +58,11 @@ class MPS:
             rhs (MPS): The second multiplier.
 
         Returns:
-            jaxlib.xla_extension.DeviceArray: The return value.
+            The scalar product value.
 
         """
         if self.len != rhs.len:
-            raise Exception("Ranks do not match")
+            raise Exception("Ranks of multipliers do not match")
 
         result = jnp.tensordot(self.components[0], rhs.components[0], [[1], [1]])
         for i in range(1, self.len):
@@ -72,9 +72,9 @@ class MPS:
                 result = jnp.tensordot(result, self.components[i], [[2], [0]])
 
             result = jnp.tensordot(result, rhs.components[i], [[2, 3], [0, 1]])
-        return result
+        return float(result)
 
-    def left_canonical(self):
+    def left_canonical(self) -> None:
         """
         This function performs decomposition of MPS to the left canonical form in place.
         """
@@ -91,7 +91,7 @@ class MPS:
             self.components[i] = u
             self.components[i + 1] = jnp.tensordot(rhs, self.components[i + 1], 1)
 
-    def right_canonical(self):
+    def right_canonical(self) -> None:
         """
         This function performs decomposition of MPS to the right canonical form in place.
         """
@@ -110,7 +110,7 @@ class MPS:
 
     def left_svd_trunc(self, n: int) -> None:
         """
-        This method performs svd-truncation of n non-zero singular values of MPS in left canonical form.
+        This method performs svd-truncation of n non-zero singular values of MPS in left canonical form in place.
 
         Args:
             n: number of singular values to equate to 0
@@ -146,7 +146,7 @@ class MPO:
                 self.components[i]) + '\n'
         return rep + ')'
 
-    def __call__(self, state: MPS):
+    def __call__(self, state: MPS) -> None:
         """
         This special method implements the action of operator onto the MPS in place.
 
