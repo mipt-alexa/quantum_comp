@@ -7,6 +7,29 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
+def truncate(arr: jnp.ndarray, n: int) -> jnp.ndarray:
+    """
+    This function performs truncation of n smallest non-zero values in an array.
+
+    Args:
+        arr: the 1-d array of non-negative numbers, which is sorted in descending order
+        n: number of elements to equate to 0
+
+    Returns:
+        A truncated array.
+    """
+    if n < 0 or n > len(arr):
+        raise Exception("Invalid number of values to truncate")
+
+    for i in range(len(arr) - 1, -1, -1):
+        if arr[i] != 0.0:
+            n -= 1
+            arr = arr.at[i].set(0.0)
+        if not n:
+            break
+    return arr
+
+
 class MPS:
     def __init__(self, tensors: List[jnp.ndarray]):
         """
@@ -24,7 +47,7 @@ class MPS:
         rep = 'MPS( '
         for i in range(self.len):
             rep += "component " + str(i) + " of size " + str(self.components[i].shape) + '\n'
-                   # + str(self.components[i])
+            # + str(self.components[i])
         return rep + ')'
 
     def dot(self, rhs):
@@ -55,9 +78,9 @@ class MPS:
         """
         This function performs decomposition of MPS to the left canonical form in place.
         """
-        for i in range(self.len-1):
+        for i in range(self.len - 1):
             shape = self.components[i].shape
-            a = jnp.reshape(self.components[i], (shape[0]*shape[1], shape[2]))
+            a = jnp.reshape(self.components[i], (shape[0] * shape[1], shape[2]))
 
             u, s, v = jnp.linalg.svd(a)
             s_matrix = np.zeros((u.shape[0], v.shape[0]))
@@ -66,16 +89,15 @@ class MPS:
             u = jnp.reshape(u, (shape[0], shape[1], u.shape[1]))
             rhs = jnp.tensordot(s_matrix, v, 1)
             self.components[i] = u
-            self.components[i+1] = jnp.tensordot(rhs, self.components[i+1], 1)
+            self.components[i + 1] = jnp.tensordot(rhs, self.components[i + 1], 1)
 
     def right_canonical(self):
         """
         This function performs decomposition of MPS to the right canonical form in place.
         """
-        for i in range(self.len-1, 0, -1):
-            print(i)
+        for i in range(self.len - 1, 0, -1):
             shape = self.components[i].shape
-            a = jnp.reshape(self.components[i], (shape[0], shape[1]*shape[2]))
+            a = jnp.reshape(self.components[i], (shape[0], shape[1] * shape[2]))
 
             u, s, v = jnp.linalg.svd(a)
             s_matrix = np.zeros((u.shape[0], v.shape[0]))
@@ -84,7 +106,24 @@ class MPS:
             v = jnp.reshape(v, (v.shape[0], shape[1], shape[2]))
             lhs = jnp.tensordot(u, s_matrix, 1)
             self.components[i] = v
-            self.components[i-1] = jnp.tensordot(self.components[i-1], lhs, 1)
+            self.components[i - 1] = jnp.tensordot(self.components[i - 1], lhs, 1)
+
+    def left_svd_trunc(self, n: int) -> None:
+        """
+        This method performs svd-truncation of n non-zero singular values of MPS in left canonical form.
+
+        Args:
+            n: number of singular values to equate to 0
+        """
+        a = self.components[self.len - 1]
+        shape = a.shape
+        u, s, v = jnp.linalg.svd(jnp.reshape(a, (shape[0], shape[1])))
+        s = truncate(s, n)
+
+        s_matrix = np.zeros((u.shape[0], v.shape[0]))
+        np.fill_diagonal(s_matrix, s)
+        a = jnp.tensordot(u, jnp.tensordot(s_matrix, v, 1), 1)
+        self.components[self.len - 1] = jnp.reshape(a, shape)
 
 
 class MPO:
@@ -121,4 +160,4 @@ class MPO:
         for i in range(0, self.len):
             state.components[i] = jnp.tensordot(self.components[i], state.components[i], [[1], [1]])
             shape = state.components[i].shape
-            state.components[i] = jnp.reshape(state.components[i], (shape[0]*shape[3], shape[2], shape[1]*shape[4]))
+            state.components[i] = jnp.reshape(state.components[i], (shape[0] * shape[3], shape[2], shape[1] * shape[4]))

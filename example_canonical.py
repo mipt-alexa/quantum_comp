@@ -1,21 +1,25 @@
 from classes import *
-
+import jaxlib
 from jax import random
 
-keys = random.split(random.PRNGKey(42), num=6)
+
+keys = random.split(random.PRNGKey(48012), num=6)
 
 inner_dim_mps = 3
-outer_dim = 2
+outer_dim = 4
 
-first_mps = random.randint(keys[0], (1, outer_dim, inner_dim_mps), minval=0, maxval=4)
-middle_mps = random.randint(keys[1], (inner_dim_mps, outer_dim, inner_dim_mps), minval=0, maxval=4)
-last_mps = random.randint(keys[2], (inner_dim_mps, outer_dim, 1), minval=0, maxval=4)
+first = random.normal(keys[0], (1, outer_dim, inner_dim_mps))
+middle = random.normal(keys[1], (inner_dim_mps, outer_dim, inner_dim_mps))
+last = random.normal(keys[2], (inner_dim_mps, outer_dim, 1))
 
-s = MPS([first_mps, middle_mps, middle_mps, last_mps])
+s = MPS([first, middle, middle, middle, middle, last])
 
 s.right_canonical()
 print(repr(s))
 s.left_canonical()
+print(repr(s))
+
+s.left_svd_trunc(1)
 print(repr(s))
 
 # A = np.zeros((4, 5))
