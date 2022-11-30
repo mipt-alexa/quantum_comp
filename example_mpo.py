@@ -18,5 +18,5 @@ last_mpo = random.randint(keys[5], (inner_dim_mpo, outer_dim, 1, outer_dim), min
 s = MPS([first_mps, middle_mps, middle_mps, last_mps])
 o = MPO([first_mpo, middle_mpo, middle_mpo, last_mpo])
 
-o(s)
+o.process(s)
 print(repr(s))

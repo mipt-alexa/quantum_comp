@@ -9,7 +9,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def truncate(arr: jnp.ndarray, n: int) -> jnp.ndarray:
     """
-    This function performs truncation of n smallest non-zero values in an array.
+    This function performs truncation of the n smallest non-zero values in an array.
 
     Args:
         arr: the 1-d array of non-negative numbers, which is sorted in descending order
@@ -146,7 +146,7 @@ class MPO:
                 self.components[i]) + '\n'
         return rep + ')'
 
-    def __call__(self, state: MPS) -> None:
+    def process(self, state: MPS) -> None:
         """
         This special method implements the action of operator onto the MPS in place.
 
