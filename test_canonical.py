@@ -2,43 +2,67 @@ from classes import *
 import unittest
 import numpy as np
 
+MPS_LEN = 6  # number of components of MPS
+MAX_DIM = 6  # maximum dimension of any mps component index
 
-class Test(unittest.TestCase):
-    def test_dot(self):
-        max_dim = 6  # maximum dimension of any index
-        length = 6  # length of MPS
 
-        outer_dims = np.random.randint(1, max_dim, length)  # visible dimensions of each tensor
-        inner_dims = np.random.randint(1, max_dim, length - 1)  # bond dimensions of tensor A
+def get_tensor_from_MPS(x: MPS) -> jnp.ndarray:
+    result = x.components[0]
+    for i in range(1, x.len):
+        result = jnp.tensordot(result, x.components[i], 1)
+    return result
 
-        comp = [np.random.randn(1, outer_dims[0], inner_dims[0])]  # filling the first components of mps
-        for i in range(1, length - 1):
-            comp.append(np.random.randn(inner_dims[i - 1], outer_dims[i], inner_dims[i]))
-        comp.append(
-            np.random.randn(inner_dims[-1], outer_dims[-1], 1))  # the last components of mps
 
-        mps = MPS(comp)
-        mps.left_canonical()
+def create_mps(length: int) -> MPS:
+    outer_dims = np.random.randint(1, MAX_DIM, length)  # visible dimensions
+    inner_dims = np.random.randint(1, MAX_DIM, length - 1)  # bond dimensions
+
+    comp = [np.random.randn(1, outer_dims[0], inner_dims[0])]  # filling the first components of mps
+    for i in range(1, length - 1):
+        comp.append(np.random.randn(inner_dims[i - 1], outer_dims[i], inner_dims[i]))
+    comp.append(
+        np.random.randn(inner_dims[-1], outer_dims[-1], 1))  # the last components of mps
+
+    mps = MPS(comp)
+    return mps
+
+
+class TestCanonical(unittest.TestCase):
+    def test_hermitian(self):
+        mps = create_mps(MPS_LEN)
 
         validation = []
+        mps.left_canonical()
 
-        for i in range(length - 1):
+        for i in range(MPS_LEN - 1):
             shape = mps.components[i].shape
             result = jnp.tensordot(mps.components[i], mps.components[i], [[0, 1], [0, 1]])
-            expected = np.diag(np.ones(shape[0]*shape[1]))
+            expected = np.diag(np.ones(shape[0] * shape[1]))
             validation.append(np.allclose(result, expected, atol=1e-06))
 
         self.assertTrue(np.all(validation))
         validation.clear()
         mps.right_canonical()
 
-        for i in range(1, length):
+        for i in range(1, MPS_LEN):
             shape = mps.components[i].shape
             result = jnp.tensordot(mps.components[i], mps.components[i], [[1, 2], [1, 2]])
-            expected = np.diag(np.ones(shape[1]*shape[2]))
+            expected = np.diag(np.ones(shape[1] * shape[2]))
             validation.append(np.allclose(result, expected, atol=1e-06))
 
         self.assertTrue(np.all(validation))
+
+    def test_intact_norm(self):
+        mps = create_mps(MPS_LEN)
+        expected = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
+
+        mps.right_canonical()
+        result = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
+        self.assertAlmostEqual(expected, result, places=1)
+
+        mps.left_canonical()
+        result = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
+        self.assertAlmostEqual(expected, result, places=1)
 
 
 unittest.main(argv=[''], verbosity=2, exit=True)
