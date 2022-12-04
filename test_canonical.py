@@ -28,7 +28,7 @@ def create_mps(length: int) -> MPS:
 
 
 class TestCanonical(unittest.TestCase):
-    def test_hermitian(self):
+    def test_hermitian_adjoint(self):
         mps = create_mps(MPS_LEN)
 
         validation = []
@@ -58,11 +58,23 @@ class TestCanonical(unittest.TestCase):
 
         mps.right_canonical()
         result = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
-        self.assertAlmostEqual(expected, result, places=1)
+        self.assertTrue(np.allclose(expected, result, rtol=1e-5))
 
         mps.left_canonical()
         result = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
-        self.assertAlmostEqual(expected, result, places=1)
+        self.assertTrue(np.allclose(expected, result, rtol=1e-5))
+
+    def test_norm_property(self):
+        mps = create_mps(MPS_LEN)
+        a = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
+
+        mps.left_canonical()
+        b = jnp.tensordot(mps.components[-1], mps.components[-1], 3)
+        self.assertTrue(np.allclose(a, b, rtol=1e-5))
+
+        mps.right_canonical()
+        c = jnp.tensordot(mps.components[0], mps.components[0], 3)
+        self.assertTrue(np.allclose(a, c, rtol=1e-5))
 
 
 unittest.main(argv=[''], verbosity=2, exit=True)
