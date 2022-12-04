@@ -1,5 +1,6 @@
 import jax.numpy as jnp
 import numpy as np
+import numpy.linalg as la
 from typing import List
 
 import os
@@ -7,26 +8,28 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
-def truncate(arr: jnp.ndarray, n: int) -> jnp.ndarray:
-    """
+def truncate(arr: jnp.ndarray, epsilon: float) -> jnp.ndarray:
+    """ 
     This function performs truncation of the n smallest non-zero values in an array.
 
     Args:
         arr: the 1-d array of non-negative numbers, which is sorted in descending order
         n: number of elements to equate to 0
+        epsilon: truncation value of L1 MPS norm
 
     Returns:
         A truncated array.
     """
-    if n < 0 or n > len(arr):
-        raise Exception("Invalid number of values to truncate")
+    print(arr)
+    init_norm = la.norm(arr)
+    if init_norm < epsilon:
+        raise Exception("Truncation value exceed initial norm")
 
-    for i in range(len(arr) - 1, -1, -1):
-        if arr[i] != 0.0:
-            n -= 1
+    for i in range(len(arr) - 1, 1, -1):
+        if init_norm**2 - la.norm(arr)**2 + arr[i]**2 < epsilon**2:
             arr = arr.at[i].set(0.0)
-        if not n:
-            break
+
+    print(arr)
     return arr
 
 
@@ -108,17 +111,17 @@ class MPS:
             self.components[i] = v
             self.components[i - 1] = jnp.tensordot(self.components[i - 1], lhs, 1)
 
-    def left_svd_trunc(self, n: int) -> None:
+    def left_svd_trunc(self, epsilon: float) -> None:
         """
         This method performs svd-truncation of n non-zero singular values of MPS in left canonical form in place.
 
         Args:
-            n: number of singular values to equate to 0
+            epsilon: truncation value of L1 MPS norm
         """
         a = self.components[self.len - 1]
         shape = a.shape
         u, s, v = jnp.linalg.svd(jnp.reshape(a, (shape[0], shape[1])))
-        s = truncate(s, n)
+        s = truncate(s, epsilon)
 
         s_matrix = np.zeros((u.shape[0], v.shape[0]))
         np.fill_diagonal(s_matrix, s)
@@ -152,7 +155,6 @@ class MPO:
 
         Args:
             state: The MPS to which the operator is applied.
-
         """
         if self.len != state.len:
             raise Exception("Ranks of the MPO and MPS do not match")
