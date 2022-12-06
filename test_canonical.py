@@ -28,7 +28,7 @@ def create_mps(length: int) -> MPS:
 
 
 class TestCanonical(unittest.TestCase):
-    def test_hermitian_adjoint(self):
+    def test_unitary(self):
         mps = create_mps(MPS_LEN)
 
         validation = []
@@ -64,7 +64,7 @@ class TestCanonical(unittest.TestCase):
         result = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
         self.assertTrue(np.allclose(expected, result, rtol=1e-5))
 
-    def test_canonical_norm_property(self):
+    def test_canonical_form_norm_property(self):
         mps = create_mps(MPS_LEN)
         a = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
 
@@ -76,5 +76,24 @@ class TestCanonical(unittest.TestCase):
         c = jnp.tensordot(mps.components[0], mps.components[0], 3)
         self.assertTrue(np.allclose(a, c, rtol=1e-5))
 
+    def test_unitary_after_truncation(self):
+        mps = create_mps(MPS_LEN)
 
-unittest.main(argv=[''], verbosity=2, exit=True)
+        mps.left_canonical()
+
+        trunc_val = np.random.uniform(0, np.sqrt(mps.dot(mps)) / 2)
+        mps.left_svd_trunc(trunc_val)
+
+        validation = []
+        mps.left_canonical()
+
+        for i in range(MPS_LEN - 1):
+            shape = mps.components[i].shape
+            result = jnp.tensordot(mps.components[i], mps.components[i], [[0, 1], [0, 1]])
+            expected = np.diag(np.ones(shape[2]))
+            validation.append(np.allclose(result, expected, atol=1e-06))
+
+        self.assertTrue(np.all(validation))
+
+
+unittest.main(argv=[''], verbosity=1, exit=True)
