@@ -40,7 +40,7 @@ class Test(unittest.TestCase):
             result = self.a.dot(self.b)
             expected = jnp.tensordot(get_tensor_from_MPS(self.a), get_tensor_from_MPS(self.b), length+2)
 
-            self.assertAlmostEqual(result, expected, places=2, msg=None)
+            self.assertTrue(np.allclose(result, expected, rtol=1e-5))
 
 
-unittest.main(argv=[''], verbosity=2, exit=False)
+unittest.main(argv=[''], verbosity=1, exit=False)
