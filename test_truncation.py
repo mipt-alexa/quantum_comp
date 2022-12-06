@@ -7,7 +7,7 @@ MAX_DIM = 6  # maximum dimension of any mps component index
 
 
 class TestTrunc(unittest.TestCase):
-    def test_norm_conservation(self):
+    def test_norm_alteration(self):
         mps = create_mps(MPS_LEN, MAX_DIM)
 
         init_norm = get_norm_from_MPS(mps)
