@@ -7,12 +7,12 @@ def get_norm_from_MPS(x: MPS) -> float:
     for i in range(1, x.len):
         result = jnp.tensordot(result, x.components[i], 1)
 
-    return jnp.tensordot(result, result, x.len + 2)
+    return np.sqrt(jnp.tensordot(result, result, x.len + 2))
 
 
-keys = random.split(random.PRNGKey(48012), num=6)
+keys = random.split(random.PRNGKey(4242), num=6)
 
-inner_dim_mps = 3
+inner_dim_mps = 6
 outer_dim = 4
 
 first = random.normal(keys[0], (1, outer_dim, inner_dim_mps))
@@ -29,5 +29,7 @@ s.left_canonical()
 print(repr(s))
 
 print(get_norm_from_MPS(s))
-s.left_svd_trunc(1)
+s.left_svd_trunc(2)
 print(get_norm_from_MPS(s))
+
+

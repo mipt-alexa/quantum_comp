@@ -20,17 +20,19 @@ def truncate(arr: jnp.ndarray, tol: float) -> jnp.ndarray:
         A truncated array.
     """
     init_norm = la.norm(arr)
+
     if init_norm < tol:
         raise Exception("Truncation value exceed initial norm")
 
     ind = len(arr) - 1
     tail_sq_norm = 0
 
-    while ind > 0 and tail_sq_norm < 2*tol*(init_norm - tol):
-        tail_sq_norm += np.power(arr[ind], 2)
-        ind -= 1
+    while ind > 0:
+        if np.sum(np.power(arr[ind:],2)) > tol*(2*init_norm - tol):
+            break
+        else:
+            ind -= 1
 
-    ind += 1
     return np.delete(arr, np.s_[ind + 1:])
 
 
@@ -109,6 +111,7 @@ class MPS:
 
             v = jnp.reshape(v, (v.shape[0], shape[1], shape[2]))
             lhs = jnp.tensordot(u, s_matrix, 1)
+
             self.components[i] = v
             self.components[i - 1] = jnp.tensordot(self.components[i - 1], lhs, 1)
 
@@ -122,13 +125,16 @@ class MPS:
         a = self.components[self.len - 1]
 
         shape = a.shape
-        u, s, v = jnp.linalg.svd(jnp.reshape(a, (shape[0], shape[1])))
+        u, s, v = jnp.linalg.svd(jnp.reshape(a, (shape[0], shape[1])), full_matrices=False)
+
         s = truncate(s, epsilon)
-
-        s_matrix = np.zeros((u.shape[0], v.shape[0]))
+        s_matrix = np.zeros((len(s), len(s)))
         np.fill_diagonal(s_matrix, s)
-        a = jnp.tensordot(u, jnp.tensordot(s_matrix, v, 1), 1)
 
+        u = u[:, :len(s)]
+        v = v[:len(s)]
+
+        a = jnp.tensordot(u, jnp.tensordot(s_matrix, v, 1), 1)
         self.components[self.len - 1] = jnp.reshape(a, shape)
 
 
