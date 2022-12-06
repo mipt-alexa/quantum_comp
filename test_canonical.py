@@ -1,4 +1,4 @@
-from classes import *
+from helper_functions import *
 import unittest
 import numpy as np
 
@@ -6,30 +6,9 @@ MPS_LEN = 6  # number of components of MPS
 MAX_DIM = 6  # maximum dimension of any mps component index
 
 
-def get_tensor_from_MPS(x: MPS) -> jnp.ndarray:
-    result = x.components[0]
-    for i in range(1, x.len):
-        result = jnp.tensordot(result, x.components[i], 1)
-    return result
-
-
-def create_mps(length: int) -> MPS:
-    outer_dims = np.random.randint(1, MAX_DIM, length)  # visible dimensions
-    inner_dims = np.random.randint(1, MAX_DIM, length - 1)  # bond dimensions
-
-    comp = [np.random.randn(1, outer_dims[0], inner_dims[0])]  # filling the first components of mps
-    for i in range(1, length - 1):
-        comp.append(np.random.randn(inner_dims[i - 1], outer_dims[i], inner_dims[i]))
-    comp.append(
-        np.random.randn(inner_dims[-1], outer_dims[-1], 1))  # the last components of mps
-
-    mps = MPS(comp)
-    return mps
-
-
 class TestCanonical(unittest.TestCase):
     def test_unitary(self):
-        mps = create_mps(MPS_LEN)
+        mps = create_mps(MPS_LEN, MAX_DIM)
 
         validation = []
         mps.left_canonical()
@@ -53,7 +32,7 @@ class TestCanonical(unittest.TestCase):
         self.assertTrue(np.all(validation))
 
     def test_invariable_norm(self):
-        mps = create_mps(MPS_LEN)
+        mps = create_mps(MPS_LEN, MAX_DIM)
         expected = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
 
         mps.right_canonical()
@@ -65,7 +44,7 @@ class TestCanonical(unittest.TestCase):
         self.assertTrue(np.allclose(expected, result, rtol=1e-5))
 
     def test_canonical_form_norm_property(self):
-        mps = create_mps(MPS_LEN)
+        mps = create_mps(MPS_LEN, MAX_DIM)
         a = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
 
         mps.left_canonical()
@@ -77,7 +56,7 @@ class TestCanonical(unittest.TestCase):
         self.assertTrue(np.allclose(a, c, rtol=1e-5))
 
     def test_unitary_after_truncation(self):
-        mps = create_mps(MPS_LEN)
+        mps = create_mps(MPS_LEN, MAX_DIM)
 
         mps.left_canonical()
 

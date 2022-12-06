@@ -1,15 +1,9 @@
-from classes import *
+from helper_functions import *
 import unittest
 
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
-
-def get_tensor_from_MPS(x: MPS) -> jnp.ndarray:
-    result = x.components[0]
-    for i in range(1, x.len):
-        result = jnp.tensordot(result, x.components[i], 1)
-    return result
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
 class Test(unittest.TestCase):
@@ -18,12 +12,13 @@ class Test(unittest.TestCase):
 
         for length in range(2, 7):
             self.outer_dims = np.random.randint(2, self.max_dim, size=length)  # visible dimensions of each tensor
-            self.inner_dims_a = np.random.randint(2, self.max_dim, length-1)  # bond dimensions of tensor A
-            self.inner_dims_b = np.random.randint(2, self.max_dim, length-1)
+            self.inner_dims_a = np.random.randint(2, self.max_dim, length - 1)  # bond dimensions of tensor A
+            self.inner_dims_b = np.random.randint(2, self.max_dim, length - 1)
 
             print(self.outer_dims, self.inner_dims_a, self.inner_dims_b)
 
-            self.comp_a = [np.random.randn(1, self.outer_dims[0], self.inner_dims_a[0])]  # filling the first components of mps
+            self.comp_a = [
+                np.random.randn(1, self.outer_dims[0], self.inner_dims_a[0])]  # filling the first components of mps
             self.comp_b = [np.random.randn(1, self.outer_dims[0], self.inner_dims_b[0])]
 
             for i in range(1, length - 1):
@@ -38,7 +33,7 @@ class Test(unittest.TestCase):
             self.b = MPS(self.comp_b)
 
             result = self.a.dot(self.b)
-            expected = jnp.tensordot(get_tensor_from_MPS(self.a), get_tensor_from_MPS(self.b), length+2)
+            expected = jnp.tensordot(get_tensor_from_MPS(self.a), get_tensor_from_MPS(self.b), length + 2)
 
             self.assertTrue(np.allclose(result, expected, rtol=1e-5))
 

@@ -1,4 +1,4 @@
-from classes import *
+from helper_functions import *
 import unittest
 import numpy as np
 
@@ -6,30 +6,9 @@ MPS_LEN = 6  # number of components of MPS
 MAX_DIM = 6  # maximum dimension of any mps component index
 
 
-def get_norm_from_MPS(x: MPS) -> float:
-    result = x.components[0]
-    for i in range(1, x.len):
-        result = jnp.tensordot(result, x.components[i], 1)
-    return np.sqrt(jnp.tensordot(result, result, x.len + 2))
-
-
-def create_mps(length: int) -> MPS:
-    outer_dims = np.random.randint(2, MAX_DIM, length)  # visible dimensions
-    inner_dims = np.random.randint(2, MAX_DIM, length - 1)  # bond dimensions
-
-    comp = [np.random.randn(1, outer_dims[0], inner_dims[0])]  # filling the first components of mps
-    for i in range(1, length - 1):
-        comp.append(np.random.randn(inner_dims[i - 1], outer_dims[i], inner_dims[i]))
-    comp.append(
-        np.random.randn(inner_dims[-1], outer_dims[-1], 1))  # the last components of mps
-
-    mps = MPS(comp)
-    return mps
-
-
 class TestTrunc(unittest.TestCase):
     def test_norm_conservation(self):
-        mps = create_mps(MPS_LEN)
+        mps = create_mps(MPS_LEN, MAX_DIM)
 
         init_norm = get_norm_from_MPS(mps)
 
