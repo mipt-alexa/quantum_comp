@@ -8,29 +8,30 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 
-def truncate(arr: jnp.ndarray, epsilon: float) -> jnp.ndarray:
+def truncate(arr: jnp.ndarray, tol: float) -> jnp.ndarray:
     """ 
     This function performs truncation of the n smallest non-zero values in an array.
 
     Args:
         arr: the 1-d array of non-negative numbers, which is sorted in descending order
-        n: number of elements to equate to 0
-        epsilon: truncation value of L1 MPS norm
+        tol: allowed value of truncating L2 norm
 
     Returns:
         A truncated array.
     """
-    print(arr)
     init_norm = la.norm(arr)
-    if init_norm < epsilon:
+    if init_norm < tol:
         raise Exception("Truncation value exceed initial norm")
 
-    for i in range(len(arr) - 1, 1, -1):
-        if init_norm**2 - la.norm(arr)**2 + arr[i]**2 < epsilon**2:
-            arr = arr.at[i].set(0.0)
+    ind = len(arr) - 1
+    tail_sq_norm = 0
 
-    print(arr)
-    return arr
+    while ind > 0 and tail_sq_norm < 2*tol*(init_norm - tol):
+        tail_sq_norm += np.power(arr[ind], 2)
+        ind -= 1
+
+    ind += 1
+    return np.delete(arr, np.s_[ind + 1:])
 
 
 class MPS:
@@ -119,6 +120,7 @@ class MPS:
             epsilon: truncation value of L1 MPS norm
         """
         a = self.components[self.len - 1]
+
         shape = a.shape
         u, s, v = jnp.linalg.svd(jnp.reshape(a, (shape[0], shape[1])))
         s = truncate(s, epsilon)
@@ -126,6 +128,7 @@ class MPS:
         s_matrix = np.zeros((u.shape[0], v.shape[0]))
         np.fill_diagonal(s_matrix, s)
         a = jnp.tensordot(u, jnp.tensordot(s_matrix, v, 1), 1)
+
         self.components[self.len - 1] = jnp.reshape(a, shape)
 
 
