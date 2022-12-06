@@ -86,8 +86,8 @@ class MPS:
             shape = self.components[i].shape
             a = jnp.reshape(self.components[i], (shape[0] * shape[1], shape[2]))
 
-            u, s, v = jnp.linalg.svd(a)
-            s_matrix = np.zeros((u.shape[0], v.shape[0]))
+            u, s, v = jnp.linalg.svd(a, full_matrices=False)
+            s_matrix = np.zeros((u.shape[1], v.shape[0]))
             np.fill_diagonal(s_matrix, s)
 
             u = jnp.reshape(u, (shape[0], shape[1], u.shape[1]))
@@ -103,8 +103,8 @@ class MPS:
             shape = self.components[i].shape
             a = jnp.reshape(self.components[i], (shape[0], shape[1] * shape[2]))
 
-            u, s, v = jnp.linalg.svd(a)
-            s_matrix = np.zeros((u.shape[0], v.shape[0]))
+            u, s, v = jnp.linalg.svd(a, full_matrices=False)
+            s_matrix = np.zeros((u.shape[1], v.shape[0]))
             np.fill_diagonal(s_matrix, s)
 
             v = jnp.reshape(v, (v.shape[0], shape[1], shape[2]))

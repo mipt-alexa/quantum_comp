@@ -37,7 +37,7 @@ class TestCanonical(unittest.TestCase):
         for i in range(MPS_LEN - 1):
             shape = mps.components[i].shape
             result = jnp.tensordot(mps.components[i], mps.components[i], [[0, 1], [0, 1]])
-            expected = np.diag(np.ones(shape[0] * shape[1]))
+            expected = np.diag(np.ones(shape[2]))
             validation.append(np.allclose(result, expected, atol=1e-06))
 
         self.assertTrue(np.all(validation))
@@ -47,12 +47,12 @@ class TestCanonical(unittest.TestCase):
         for i in range(1, MPS_LEN):
             shape = mps.components[i].shape
             result = jnp.tensordot(mps.components[i], mps.components[i], [[1, 2], [1, 2]])
-            expected = np.diag(np.ones(shape[1] * shape[2]))
+            expected = np.diag(np.ones(shape[0]))
             validation.append(np.allclose(result, expected, atol=1e-06))
 
         self.assertTrue(np.all(validation))
 
-    def test_intact_norm(self):
+    def test_invariable_norm(self):
         mps = create_mps(MPS_LEN)
         expected = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
 
@@ -64,7 +64,7 @@ class TestCanonical(unittest.TestCase):
         result = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
         self.assertTrue(np.allclose(expected, result, rtol=1e-5))
 
-    def test_norm_property(self):
+    def test_canonical_norm_property(self):
         mps = create_mps(MPS_LEN)
         a = jnp.tensordot(get_tensor_from_MPS(mps), get_tensor_from_MPS(mps), MPS_LEN + 2)
 
