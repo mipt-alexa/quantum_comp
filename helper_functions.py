@@ -27,3 +27,24 @@ def create_mps(length: int, max_dim: int) -> MPS:
 
     mps = MPS(comp)
     return mps
+
+
+def unfold_matrix_from_mps(mps: MPS, part_index: int) -> jnp.ndarray:
+    """This function performs conversion of MPS into tensor and then an unfolding matrix,
+    where part_index parameter specifies which of the tensor indices would be merged
+    A_i = A(0, ..., part_index; part_index + 1, ... )"""
+
+    if part_index >= mps.len - 1:
+        raise Exception
+
+    tensor = mps.components[0]
+    shape_2d = [mps.components[0].shape[1], 1]
+    for i in range(1, mps.len):
+        if i <= part_index:
+            shape_2d[0] *= mps.components[i].shape[1]
+        else:
+            shape_2d[1] *= mps.components[i].shape[1]
+
+        tensor = jnp.tensordot(tensor, mps.components[i], 1)
+
+    return jnp.reshape(tensor, shape_2d)
