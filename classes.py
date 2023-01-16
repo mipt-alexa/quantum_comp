@@ -57,7 +57,14 @@ class MPS:
         return rep + ')'
 
     def __sub__(self, other: "MPS") -> "MPS":
-        """"""
+        """Produce difference between 2 MPS objects"""
+        if self.len != other.len:
+            raise Exception
+
+        for i in range(self.len):
+            if self.components[i].shape != other.components[i].shape:
+                raise Exception
+
         tensors = []
         for i in range(self.len):
             tensors.append(self.components[i] - other.components[i])
