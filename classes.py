@@ -56,6 +56,14 @@ class MPS:
             # + str(self.components[i])
         return rep + ')'
 
+    def __sub__(self, other: "MPS") -> "MPS":
+        """"""
+        tensors = []
+        for i in range(self.len):
+            tensors.append(self.components[i] - other.components[i])
+
+        return MPS(tensors)
+
     def dot(self, rhs) -> float:
         """
         This function computes scalar product of two MPS.
