@@ -16,6 +16,10 @@ def get_norm_from_MPS(x: MPS) -> float:
 
 
 def create_mps(length: int, max_dim: int) -> MPS:
+    """
+    This function creates MPS of given length with dimensions not exceeding the given maximum dimension,
+    and entries of tensors being random variables having the standard normal distribution.
+    """
     outer_dims = np.random.randint(1, max_dim, length)  # visible dimensions
     inner_dims = np.random.randint(1, max_dim, length - 1)  # bond dimensions
 
@@ -30,12 +34,14 @@ def create_mps(length: int, max_dim: int) -> MPS:
 
 
 def unfold_matrix_from_mps(mps: MPS, part_index: int) -> jnp.ndarray:
-    """This function performs conversion of MPS into tensor and then an unfolding matrix,
+    """
+    This function performs conversion of MPS into tensor and then an unfolding 2-D matrix,
     where part_index parameter specifies which of the tensor indices would be merged
-    A_i = A(0, ..., part_index; part_index + 1, ... )"""
+    A_i = A(0, ..., part_index; part_index + 1, ... )
+    """
 
     if part_index >= mps.len - 1:
-        raise Exception
+        raise Exception("Partition index exceed the MPS length")
 
     tensor = mps.components[0]
     shape_2d = [mps.components[0].shape[1], 1]
