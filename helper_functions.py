@@ -1,4 +1,6 @@
-from classes import *
+from classes import MPS
+import numpy as np
+import jax.numpy as jnp
 
 
 def get_tensor_from_MPS(x: MPS) -> jnp.ndarray:
