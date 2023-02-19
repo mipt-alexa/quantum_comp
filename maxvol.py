@@ -20,7 +20,7 @@ def arg_absmax(arr: jnp.ndarray) -> Tuple[int, int]:
 
 def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
     """
-    This function implements the maxvol algorithm by using PLU decomposition
+    This function implements the maxvol algorithm by using the PLU decomposition
     on the first step and Sherman-Woodbury-Morrison formula
     for matrix inverse on the following steps
 
@@ -29,7 +29,7 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
         tol: tolerance, the stopping criterion in iterations
 
     Returns:
-        The maximum volume submatrix.
+        The list of row indices forming the quasi- maximum volume submatrix.
     """
 
     A = copy.deepcopy(matrix)
@@ -47,16 +47,16 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
 
     i, j = arg_absmax(B)
 
-    A = jnp.tensordot(jnp.transpose(P), A, 1)
+    row_inds = jnp.tensordot(jnp.transpose(P), jnp.array(range(n)), 1)
+    row_inds = jnp.asarray(row_inds, dtype=int)
 
     while not abs(B[i][j]) < 1. + tol:
-        buff = A[i, :]
-        A = A.at[i, :].set(A[j, :])
-        A = A.at[j, :].set(buff)
 
-        e_j_T = jnp.zeros(r)
-        e_j_T = e_j_T.at[j].set(1)
+        buff = row_inds[j]
+        row_inds = row_inds.at[j].set(row_inds[i])
+        row_inds = row_inds.at[i].set(buff)
 
+        e_j_T = jnp.zeros(r).at[j].set(1)
         B -= 1 / B[i][j] * jnp.tensordot(B[:, j], B[i, :] - e_j_T, 0)
 
         i, j = arg_absmax(B)
@@ -65,20 +65,20 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
         if steps == jnp.power(n, r + 1):
             raise Exception("computation limit exceeded")
 
-    return A[0:r]
+    return row_inds[0:r]
 
 
 def naive_maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
     """
     This function implements the maxvol algorithm in a naive way,
-    using only jnp.linalg module functions for matrix inverse
+    using only jnp.linalg module functions for matrix operations
 
     Args:
         matrix: 2-dimensional array
         tol: tolerance, the stopping criterion in iterations
 
     Returns:
-        The maximum volume submatrix.
+        The list of row indices forming the quasi- maximum volume submatrix.
     """
 
     A = copy.deepcopy(matrix)
@@ -89,23 +89,22 @@ def naive_maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
     n, r = A.shape
     steps = 0
 
-    submatrix = A[0:r]
-    B = jnp.tensordot(A, jnp.linalg.inv(submatrix), 1)
+    row_inds = jnp.array(range(n))
 
+    B = jnp.tensordot(A, jnp.linalg.inv(A[0:r]), 1)
     i, j = arg_absmax(B)
 
     while not abs(B[i][j]) < 1. + tol:
 
-        buff = A[i, :]
-        A = A.at[i, :].set(A[j, :])
-        A = A.at[j, :].set(buff)
+        buff = row_inds[j]
+        row_inds = row_inds.at[j].set(row_inds[i])
+        row_inds = row_inds.at[i].set(buff)
 
-        submatrix = A[0:r]
-        B = jnp.tensordot(A, jnp.linalg.inv(submatrix), 1)
+        B = jnp.tensordot(A[row_inds], jnp.linalg.inv(A[row_inds][0:r]), 1)
         i, j = arg_absmax(B)
 
         steps += 1
         if steps == jnp.power(n, r + 1):
             raise Exception("computation limit exceed")
 
-    return submatrix
+    return row_inds[0:r]

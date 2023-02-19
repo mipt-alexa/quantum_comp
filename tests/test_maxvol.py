@@ -15,8 +15,8 @@ class TestMaxVol(unittest.TestCase):
         for _ in range(50):
             matrix = jnp.array(np.random.randn(100, 10))
 
-            naive_vol = abs(jnp.linalg.det(naive_maxvol(matrix)))
-            adv_vol = abs(jnp.linalg.det(maxvol(matrix)))
+            naive_vol = abs(jnp.linalg.det(matrix[naive_maxvol(matrix)]))
+            adv_vol = abs(jnp.linalg.det(matrix[maxvol(matrix)]))
 
             self.assertTrue(np.allclose(naive_vol, adv_vol, 0.2*naive_vol))
 
@@ -24,7 +24,7 @@ class TestMaxVol(unittest.TestCase):
         for n, r in [(6, 2), (10, 4), (15, 5), (20, 3)]:
             matrix = jnp.array(np.random.randn(n, r))
 
-            res_submatrix = maxvol(matrix, tol)
+            res_submatrix = matrix[maxvol(matrix, tol)]
             res_volume = abs(jnp.linalg.det(res_submatrix))
 
             true_max_vol = 0
