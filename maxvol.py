@@ -45,10 +45,11 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
     Q = solve_triangular(jnp.transpose(U), jnp.transpose(A), lower=True)
     B = jnp.transpose(solve_triangular(jnp.transpose(L[0:r]), Q, lower=False))
 
-    i, j = arg_absmax(B)
-
     row_inds = jnp.tensordot(jnp.transpose(P), jnp.array(range(n)), 1)
     row_inds = jnp.asarray(row_inds, dtype=int)
+    B = B[row_inds]
+
+    i, j = arg_absmax(B)
 
     while not abs(B[i][j]) < 1. + tol:
 
@@ -56,8 +57,12 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
         row_inds = row_inds.at[j].set(row_inds[i])
         row_inds = row_inds.at[i].set(buff)
 
-        e_j_T = jnp.zeros(r).at[j].set(1)
-        B -= 1 / B[i][j] * jnp.tensordot(B[:, j], B[i, :] - e_j_T, 0)
+        e_i, e_j, e_j_T = jnp.zeros(n), jnp.zeros(n), jnp.zeros(r)
+        e_i = e_i.at[i].set(1)
+        e_j = e_j.at[j].set(1)
+        e_j_T = e_j_T.at[j].set(1)
+
+        B -= 1 / B[i, j] * jnp.tensordot(B[:, j] - e_j + e_i, B[i, :] - e_j_T, 0)
 
         i, j = arg_absmax(B)
 
