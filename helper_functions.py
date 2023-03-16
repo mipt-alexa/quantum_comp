@@ -4,6 +4,10 @@ import jax.numpy as jnp
 
 
 def get_tensor_from_MPS(x: MPS) -> jnp.ndarray:
+    """
+    This function produces the tensor form of an MPS with shape (1, outer_dimensions, 1).
+    The cause for first and last dimensions to be 1 is consistency with MPS object structure.
+    """
     result = x.components[0]
     for i in range(1, x.len):
         result = jnp.tensordot(result, x.components[i], 1)

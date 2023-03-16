@@ -44,7 +44,7 @@ class TestTrunc(unittest.TestCase):
             matrix_full = unfold_matrix_from_mps(init_mps, i)
             matrix_trunc = unfold_matrix_from_mps(mps, i)
 
-            total_error_sq += la.norm(matrix_full - matrix_trunc) ** 2
+            total_error_sq += jnp.linalg.norm(matrix_full - matrix_trunc) ** 2
 
         diff = get_tensor_from_MPS(init_mps) - get_tensor_from_MPS(mps)
         trunc_error = np.sqrt(jnp.tensordot(diff, diff, mps.len + 2))
