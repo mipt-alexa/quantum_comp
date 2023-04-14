@@ -57,13 +57,13 @@ class MPS:
         return rep + ')'
 
     def __sub__(self, other: "MPS") -> "MPS":
-        """Produce difference between 2 MPS objects"""
+        """Produce element-wise difference between 2 MPS objects """
         if self.len != other.len:
-            raise Exception
+            raise Exception("MPS lengths are not equal")
 
         for i in range(self.len):
             if self.components[i].shape != other.components[i].shape:
-                raise Exception
+                raise Exception("MPS components' sizes by index " + str(i) + "are not equal")
 
         tensors = []
         for i in range(self.len):
@@ -94,6 +94,14 @@ class MPS:
 
             result = jnp.tensordot(result, rhs.components[i], [[2, 3], [0, 1]])
         return float(result)
+
+    def norm(self) -> float:
+        """
+        This function computes L2 norm of MPS
+        Returns:
+            L2 norm of MPS
+        """
+        return float(jnp.sqrt(self.dot(self)))
 
     def left_canonical(self) -> None:
         """
