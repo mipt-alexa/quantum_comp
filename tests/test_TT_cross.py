@@ -1,11 +1,11 @@
 from TT_cross import TT_cross
 from classes import MPS
-from helper_functions import get_tensor_from_MPS
 
 import unittest
 import jax.numpy as jnp
 import jax
 import numpy as np
+import timeit
 
 import copy
 
@@ -28,45 +28,33 @@ class MyTensor:
 
         self.mps = MPS(components)
 
-    def get_element(self, ind):
+    def get_element(self, ind_arr):
 
-        element = self.mps.components[0][:, ind[0], :]
-        for i in range(1, len(self.out_dims)):
-            element = jnp.tensordot(element, self.mps.components[i][:, ind[i], :], 1)
-        return float(element)
-
-
-def hilbert_tensor(ind):
-    return 1/(jnp.sum(ind) + len(ind))
+        values = jnp.empty(len(ind_arr))
+        for j in range(len(ind_arr)):
+            element = self.mps.components[0][:, ind_arr[j][0], :]
+            for i in range(1, len(self.out_dims)):
+                element = jnp.tensordot(element, self.mps.components[i][:, ind_arr[j][i], :], 1)
+            values = values.at[j].set(float(element))
+        return values
 
 
 class TestTTCrossSanity(unittest.TestCase):
     def test_sanity(self):
         for size in (10, 20, 30):
-            out_dims = [3] * size
-            in_dims = [2] * (size - 1)
+            out_dims = [10] * size
+            in_dims = [5] * (size - 1)
 
+            t_0 = timeit.default_timer()
             T = MyTensor(out_dims, in_dims)
+            t_1 = timeit.default_timer()
             new_mps = TT_cross(T.get_element, out_dims, in_dims, tol=1e-1)
+            t_2 = timeit.default_timer()
 
-            self.assertLess((T.mps.norm() -new_mps.norm()) / T.mps.norm(), 1e-6)
+            print((T.mps.norm() - new_mps.norm()) / T.mps.norm())
+            print("for mps_len", size, "\nTensor initialization", round(t_1 - t_0, 3), "\nTT cross performing", round(t_2 - t_1, 3))
 
-    # def test_hilbert_tensor(self):
-    #     a = 20
-    #     out_dims = [a] * 4
-    #     tensor = jnp.empty(out_dims)
-    #     for i0 in range(a):
-    #         for i1 in range(a):
-    #             for i2 in range(a):
-    #                 for i3 in range(a):
-    #                     tensor = tensor.at[i0, i1, i2, i3].set(hilbert_tensor(jnp.array([i0, i1, i2, i3])))
-    #
-    #     for in_dim in range(2, a//2):
-    #         in_dims = [in_dim] * 3
-    #         mps = TT_cross(hilbert_tensor, out_dims, in_dims)
-    #
-    #         delta = tensor - jnp.reshape(get_tensor_from_MPS(mps), out_dims)
-    #         print(in_dim, jnp.sqrt(jnp.tensordot(delta, delta, 4)))
+            self.assertLess((T.mps.norm() -new_mps.norm()) / T.mps.norm(), 1e-5)
 
 
 unittest.main(argv=[''], verbosity=1, exit=True)
