@@ -1,11 +1,14 @@
 import jax.numpy as jnp
+import jax.config
 import numpy as np
 import numpy.linalg as la
+
 from typing import List
 
 import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+jax.config.update("jax_enable_x64", True)
 
 
 def truncate(arr: jnp.ndarray, tol: float) -> jnp.ndarray:
@@ -71,7 +74,7 @@ class MPS:
 
         return MPS(tensors)
 
-    def dot(self, rhs) -> float:
+    def dot(self, rhs) -> jnp.float64:
         """
         This function computes scalar product of two MPS.
 
@@ -93,15 +96,15 @@ class MPS:
                 result = jnp.tensordot(result, self.components[i], [[2], [0]])
 
             result = jnp.tensordot(result, rhs.components[i], [[2, 3], [0, 1]])
-        return float(result)
+        return jnp.reshape(result, 1)[0]
 
-    def norm(self) -> float:
+    def norm(self) -> jnp.float64:
         """
         This function computes L2 norm of MPS
         Returns:
             L2 norm of MPS
         """
-        return float(jnp.sqrt(self.dot(self)))
+        return jnp.sqrt(self.dot(self))
 
     def left_canonical(self) -> None:
         """
