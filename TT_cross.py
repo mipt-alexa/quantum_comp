@@ -1,10 +1,14 @@
 import copy
 import timeit
+import jax.config
 
 from maxvol import maxvol
 from helper_functions import *
 
 from typing import List, Callable
+
+
+jax.config.update("jax_enable_x64", True)
 
 
 def rand_mps_comp(out_dims: List[int], in_dims: List[int]) -> List[jnp.array]:
@@ -14,7 +18,7 @@ def rand_mps_comp(out_dims: List[int], in_dims: List[int]) -> List[jnp.array]:
     components = []
 
     for i in range(len(out_dims)):
-        components.append(jnp.array(np.random.randn(in_dims[i], out_dims[i], in_dims[i + 1])))
+        components.append(jnp.array(np.random.randn(in_dims[i], out_dims[i], in_dims[i + 1]), dtype=jnp.float64))
 
     return components
 
@@ -45,10 +49,8 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
     update_time = 0
     linalg_operation_time = 0
     tensor_return_time = 0
-    multiind_time = 0
 
-    while iter < max_iter and (MPS(v) - MPS(v_prev)).norm() > tol * MPS(v).norm():
-        iter += 1
+    while iter < max_iter:# and (MPS(v) - MPS(v_prev)).norm() > tol * MPS(v).norm():
         print("iter", iter)
         v_prev = v
 
@@ -57,23 +59,26 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
             t_0 = timeit.default_timer()
 
             if iter > 0:
-                indices = jnp.empty((in_dims[k] * out_dims[k] * in_dims[k + 1], mps_len), dtype=jnp.int32)
-                for i in range(in_dims[k]):
-                    for j in range(in_dims[k + 1]):
-                        for l in range(out_dims[k]):
-                            if k == 0:
-                                multiind = jnp.concatenate([jnp.array([l]), J[k][j]])
-                            elif k == mps_len - 1:
-                                multiind = jnp.concatenate([I[k - 1][i], jnp.array([l])])
-                            else:
-                                multiind = jnp.concatenate([I[k - 1][i], jnp.array([l]), J[k][j]])
 
-                            t_4 = timeit.default_timer()
+                if k == 0:
+                    middle = jnp.repeat(jnp.array(range(out_dims[k])), in_dims[k + 1])
+                    right = jnp.tile(J[k], [out_dims[k], 1])
 
-                            flat_ind = jnp.ravel_multi_index((i, l, j), (in_dims[k], out_dims[k], in_dims[k + 1]))
-                            indices = indices.at[flat_ind].set(multiind)
+                    indices = jnp.hstack((jnp.reshape(middle, (out_dims[k]*in_dims[k + 1], 1)), right))
 
-                            multiind_time += timeit.default_timer() - t_4
+                elif k == mps_len - 1:
+
+                    middle = jnp.tile(jnp.array(range(out_dims[k])), in_dims[k])
+                    left = jnp.repeat(I[k - 1], out_dims[k], axis=0)
+
+                    indices = jnp.hstack((left, jnp.reshape(middle, (in_dims[k]*out_dims[k]*in_dims[k + 1], 1))))
+
+                else:
+                    right = jnp.tile(J[k], [in_dims[k] * out_dims[k], 1])
+                    middle = jnp.tile(jnp.repeat(jnp.array(range(out_dims[k])), in_dims[k + 1]), in_dims[k])
+                    left = jnp.repeat(I[k - 1], out_dims[k] * in_dims[k + 1], axis=0)
+
+                    indices = jnp.hstack((left, jnp.reshape(middle, (in_dims[k]*out_dims[k]*in_dims[k + 1], 1)), right))
 
                 t_3 = timeit.default_timer()
 
@@ -92,7 +97,8 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
                 Q_hat = Q[new_inds]
                 v[k] = jnp.reshape(jnp.tensordot(Q, jnp.linalg.inv(Q_hat), 1),
                                    (in_dims[k], out_dims[k], in_dims[k + 1]))
-                v[k + 1] = jnp.tensordot(Q_hat, jnp.tensordot(R, v[k + 1], 1), 1)
+                if k == mps_len - 2:
+                    v[k + 1] = jnp.tensordot(Q_hat, jnp.tensordot(R, v[k + 1], 1), 1)
 
                 for i in range(len(new_inds)):
                     alpha = new_inds[i] // out_dims[k]
@@ -106,29 +112,31 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
             t_2 = timeit.default_timer()
             linalg_operation_time += t_2 - t_1
         iter += 1
-
         for k in range(mps_len - 1, -1, -1):
 
             t_0 = timeit.default_timer()
 
             if iter > 0:
-                indices = jnp.empty((in_dims[k] * out_dims[k] * in_dims[k + 1], mps_len), dtype=jnp.int32)
-                for i in range(in_dims[k]):
-                    for j in range(in_dims[k + 1]):
-                        for l in range(out_dims[k]):
-                            if k == 0:
-                                multiind = jnp.concatenate([jnp.array([l]), J[k][j]])
-                            elif k == mps_len - 1:
-                                multiind = jnp.concatenate([I[k - 1][i], jnp.array([l])])
-                            else:
-                                multiind = jnp.concatenate([I[k - 1][i], jnp.array([l]), J[k][j]])
 
-                            t_4 = timeit.default_timer()
+                if k == 0:
+                    middle = jnp.repeat(jnp.array(range(out_dims[k])), in_dims[k + 1])
+                    right = jnp.tile(J[k], [out_dims[k], 1])
 
-                            flat_ind = jnp.ravel_multi_index((i, l, j), (in_dims[k], out_dims[k], in_dims[k + 1]))
-                            indices = indices.at[flat_ind].set(multiind)
+                    indices = jnp.hstack((jnp.reshape(middle, (out_dims[k] * in_dims[k + 1], 1)), right))
 
-                            multiind_time += timeit.default_timer() - t_4
+                elif k == mps_len - 1:
+
+                    middle = jnp.tile(jnp.array(range(out_dims[k])), in_dims[k])
+                    left = jnp.repeat(I[k - 1], out_dims[k], axis=0)
+
+                    indices = jnp.hstack((left, jnp.reshape(middle, (in_dims[k] * out_dims[k] * in_dims[k + 1], 1))))
+
+                else:
+                    right = jnp.tile(J[k], [in_dims[k] * out_dims[k], 1])
+                    middle = jnp.tile(jnp.repeat(jnp.array(range(out_dims[k])), in_dims[k + 1]), in_dims[k])
+                    left = jnp.repeat(I[k - 1], out_dims[k] * in_dims[k + 1], axis=0)
+
+                    indices = jnp.hstack((left, jnp.reshape(middle, (in_dims[k] * out_dims[k] * in_dims[k + 1], 1)), right))
 
                 t_3 = timeit.default_timer()
 
@@ -145,7 +153,8 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
                 Q_hat = Q[new_inds]
                 v[k] = jnp.reshape(jnp.tensordot(jnp.transpose(jnp.linalg.inv(Q_hat)), jnp.transpose(Q), 1),
                                    (in_dims[k], out_dims[k], in_dims[k + 1]))
-                v[k - 1] = jnp.tensordot(v[k - 1], jnp.tensordot(jnp.transpose(R), jnp.transpose(Q_hat), 1), 1)
+                if k == 1:
+                    v[k - 1] = jnp.tensordot(v[k - 1], jnp.tensordot(jnp.transpose(R), jnp.transpose(Q_hat), 1), 1)
 
                 for i in range(len(new_inds)):
                     alpha = new_inds[i] % in_dims[k + 1]
@@ -158,9 +167,11 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
 
             t_2 = timeit.default_timer()
             linalg_operation_time += t_2 - t_1
+        print("v norm", MPS(v).norm())
+        iter += 1
 
-    print("update time", update_time)
-    print("tensor return time", tensor_return_time)
-    print("linalg operations", linalg_operation_time)
-    print("multiind time", multiind_time)
-    return MPS(v)
+    # print("update time", update_time)
+    # # print("tensor return time", tensor_return_time)
+    # print("linalg operations", linalg_operation_time)
+
+    return MPS(v), update_time, linalg_operation_time
