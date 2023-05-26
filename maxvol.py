@@ -51,18 +51,16 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
 
     i, j = arg_absmax(B)
 
+    e = jnp.identity(n)
+    e_r = jnp.identity(r)
+
     while not abs(B[i][j]) < 1. + tol:
 
         buff = row_inds[j]
         row_inds = row_inds.at[j].set(row_inds[i])
         row_inds = row_inds.at[i].set(buff)
 
-        e_i, e_j, e_j_T = jnp.zeros(n), jnp.zeros(n), jnp.zeros(r)
-        e_i = e_i.at[i].set(1)
-        e_j = e_j.at[j].set(1)
-        e_j_T = e_j_T.at[j].set(1)
-
-        B -= 1 / B[i, j] * jnp.tensordot(B[:, j] - e_j + e_i, B[i, :] - e_j_T, 0)
+        B -= 1 / B[i, j] * jnp.tensordot(B[:, j] - e[j] + e[i], B[i, :] - e_r[j], 0)
 
         i, j = arg_absmax(B)
 
