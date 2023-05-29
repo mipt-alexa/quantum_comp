@@ -25,7 +25,7 @@ class TestMaxVol(unittest.TestCase):
                 P, _, _ = lu(matrix)
 
                 product = jnp.tensordot(jnp.tensordot(jnp.transpose(P), matrix, 1), jnp.linalg.inv(res_submatrix), 1)
-                i, j = arg_absmax(product)
+                i, j = jnp.unravel_index(jnp.argmax(product), product.shape)
 
                 self.assertLess(abs(product[i][j]), 1 + tol)
 

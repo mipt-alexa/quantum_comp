@@ -1,21 +1,12 @@
 import jax.numpy as jnp
 from jax.scipy.linalg import solve_triangular, lu
+import jax
 import copy
 
-from typing import Tuple
 
-
-def arg_absmax(arr: jnp.ndarray) -> Tuple[int, int]:
-    """
-    This function returns the indices of the absolute maximum among 2d-array entries
-    """
-    amax = jnp.argmax(arr)
-    amin = jnp.argmin(arr)
-    if abs(jnp.ravel(arr)[amax]) > abs(jnp.ravel(arr)[amin]):
-        i, j = amax // arr.shape[1], amax % arr.shape[1]
-    else:
-        i, j = amin // arr.shape[1], amin % arr.shape[1]
-    return i, j
+def construct_B(U, matrix, L):
+    Q = solve_triangular(jnp.transpose(U), jnp.transpose(matrix), lower=True)
+    return jnp.transpose(solve_triangular(jnp.transpose(L[0:matrix.shape[1]]), Q, lower=False))
 
 
 def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
@@ -32,24 +23,26 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
         The list of row indices forming the quasi- maximum volume submatrix.
     """
 
-    A = copy.deepcopy(matrix)
-
-    if A.shape[0] < A.shape[1]:
+    if matrix.shape[0] < matrix.shape[1]:
         raise Exception("Condition on matrix dimensions is not satisfied")
 
-    n, r = A.shape
+    n, r = matrix.shape
     steps = 0
 
-    P, L, U = lu(A)
+    lu_jit = jax.jit(lu)
+    P, L, U = lu_jit(matrix)
 
-    Q = solve_triangular(jnp.transpose(U), jnp.transpose(A), lower=True)
-    B = jnp.transpose(solve_triangular(jnp.transpose(L[0:r]), Q, lower=False))
+    # Q = solve_triangular(jnp.transpose(U), jnp.transpose(matrix), lower=True)
+    # B = jnp.transpose(solve_triangular(jnp.transpose(L[0:r]), Q, lower=False))
+
+    construct_B_jit = jax.jit(construct_B)
+    B = construct_B_jit(U, matrix, L)
 
     row_inds = jnp.tensordot(jnp.transpose(P), jnp.array(range(n)), 1)
     row_inds = jnp.asarray(row_inds, dtype=int)
     B = B[row_inds]
 
-    i, j = arg_absmax(B)
+    i, j = jnp.unravel_index(jnp.argmax(B), B.shape) # 2d-indices of absolute maximum
 
     e = jnp.identity(n)
     e_r = jnp.identity(r)
@@ -62,7 +55,7 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
 
         B -= 1 / B[i, j] * jnp.tensordot(B[:, j] - e[j] + e[i], B[i, :] - e_r[j], 0)
 
-        i, j = arg_absmax(B)
+        i, j = jnp.unravel_index(jnp.argmax(B), B.shape)
 
         steps += 1
         if steps == jnp.power(n, r + 1):
