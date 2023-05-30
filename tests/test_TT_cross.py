@@ -42,19 +42,37 @@ class MyTensor:
 class TestTTCrossSanity(unittest.TestCase):
     def test_sanity(self):
         for size in (10, 20, 30):
-            out_dims = [10] * size
-            in_dims = [5] * (size - 1)
+            out_dims = [4] * size
+            in_dims = [2] * (size - 1)
 
             t_0 = timeit.default_timer()
             T = MyTensor(out_dims, in_dims)
             t_1 = timeit.default_timer()
-            new_mps = TT_cross(T.get_element, out_dims, in_dims, tol=1e-1)
+            new_mps = TT_cross(T.get_element, out_dims, in_dims, tol=1e-6)
             t_2 = timeit.default_timer()
 
             print((T.mps.norm() - new_mps.norm()) / T.mps.norm())
+
+            print("err =", np.sqrt(T.mps.norm()**2 + new_mps.norm()**2 - 2*T.mps.dot(new_mps)))
+
             print("for mps_len", size, "\nTensor initialization", round(t_1 - t_0, 3), "\nTT cross performing", round(t_2 - t_1, 3))
 
-            self.assertLess((T.mps.norm() -new_mps.norm()) / T.mps.norm(), 1e-5)
+            self.assertLess((T.mps.norm() - new_mps.norm()) / T.mps.norm(), 1e-5)
+
+            delta = 0
+            for j in range(100):
+                rand_multiind = jnp.array(np.random.choice(range(out_dims[0]), size, replace=True))
+
+                element0 = T.mps.components[0][:, rand_multiind[0], :]
+                for i in range(1, size):
+                    element0 = jnp.tensordot(element0, T.mps.components[i][:, rand_multiind[i], :], 1)
+
+                element1 = new_mps.components[0][:, rand_multiind[0], :]
+                for i in range(1, size):
+                    element1 = jnp.tensordot(element1, new_mps.components[i][:, rand_multiind[i], :], 1)
+
+                delta += abs(float(element0) - float(element1)) / float(element0)
+            print("rel elem err", delta/100)
 
 
 unittest.main(argv=[''], verbosity=1, exit=True)
