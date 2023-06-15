@@ -30,25 +30,25 @@ class MyTensor:
 
     def get_element(self, ind_arr):
 
-        values = jnp.empty(len(ind_arr))
+        values = []
         for j in range(len(ind_arr)):
             element = self.mps.components[0][:, ind_arr[j][0], :]
             for i in range(1, len(self.out_dims)):
                 element = jnp.tensordot(element, self.mps.components[i][:, ind_arr[j][i], :], 1)
-            values = values.at[j].set(float(element))
-        return values
+            values.append(float(element))
+        return jnp.array(values)
 
 
 class TestTTCrossSanity(unittest.TestCase):
     def test_sanity(self):
-        for size in (10, 20, 30):
+        for size in range(10, 111, 10):
             out_dims = [4] * size
             in_dims = [2] * (size - 1)
 
             t_0 = timeit.default_timer()
             T = MyTensor(out_dims, in_dims)
             t_1 = timeit.default_timer()
-            new_mps = TT_cross(T.get_element, out_dims, in_dims, tol=1e-6)
+            new_mps, update_time, linalg_operation_time, set_time, maxvol_time, reshape_time, ind_update_time = TT_cross(T.get_element, out_dims, in_dims, tol=1e-3, max_iter=6)
             t_2 = timeit.default_timer()
 
             print((T.mps.norm() - new_mps.norm()) / T.mps.norm())
@@ -57,6 +57,7 @@ class TestTTCrossSanity(unittest.TestCase):
 
             print("for mps_len", size, "\nTensor initialization", round(t_1 - t_0, 3), "\nTT cross performing", round(t_2 - t_1, 3))
 
+            print(update_time, linalg_operation_time, set_time, maxvol_time, reshape_time, ind_update_time)
             self.assertLess((T.mps.norm() - new_mps.norm()) / T.mps.norm(), 1e-5)
 
             delta = 0
