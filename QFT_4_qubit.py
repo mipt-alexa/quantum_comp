@@ -3,7 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 
 
-def P_tensor(theta: float, bond_1_dim: int, bond_2_dim: int, out_dim: int):
+def Phase_ord_4(theta: float, bond_1_dim: int, bond_2_dim: int, out_dim: int):
     """
     This function returns Phase gate as 4-dimentional tensor
     Args:
@@ -16,7 +16,24 @@ def P_tensor(theta: float, bond_1_dim: int, bond_2_dim: int, out_dim: int):
     for i in range(out_dim):
         for j in range(min(bond_1_dim, bond_2_dim)):
             t[j, i, j, i] = np.exp(complex(0, theta * i * j))
-    return jnp.array(t)
+    return jnp.array(t, dtype=jnp.complex64)
+
+
+def Phase_ord_3(theta: float, bond_1_dim: int, out_dim: int):
+    """
+    This function returns order-3 Phase gate as 4-dimentional tensor
+    with index 2 being trivial, for ex. shaped (2, 2, 1, 2)
+    Args:
+        theta: the phase
+        bond_1_dim: first bond dimension (index 0)
+        out_dim: outer dimension (indices 1 and 3)
+    """
+    t = np.full((bond_1_dim, out_dim, 1, out_dim), 0, dtype=complex)
+
+    for out_ind in range(out_dim):
+        for bond_ind_1 in range(bond_1_dim):
+            t[bond_ind_1, out_ind, 0, out_ind] = np.exp(complex(0, theta * bond_ind_1 * out_ind))
+    return jnp.array(t, dtype=jnp.complex64)
 
 
 def QFT_4_qubit(bond_dim: int) -> MPO:
@@ -30,8 +47,8 @@ def QFT_4_qubit(bond_dim: int) -> MPO:
 
     H = 1/jnp.sqrt(2) * jnp.array([[1, 1], [1, -1]])
 
-    P_pi_8 = P_tensor(np.pi / 8, 2, 1, 2)
-    P_pi_4_lower = P_tensor(np.pi / 4, 2, 1, 2)
+    P_pi_8 = Phase_ord_3(np.pi / 8, 2, 2)
+    P_pi_4_lower = Phase_ord_3(np.pi / 4, 2, 2)
     subresult_1 = jnp.reshape(jnp.tensordot(P_pi_8, P_pi_4_lower, [3, 1]), (2, 2, 2, 2))
 
     # step 1
@@ -51,8 +68,8 @@ def QFT_4_qubit(bond_dim: int) -> MPO:
 
     # step 1.2
 
-    P_pi_4 = P_tensor(np.pi/4, 2, 2, 2)
-    P_pi_2 = P_tensor(np.pi/2, 2, 2, 2)
+    P_pi_4 = Phase_ord_4(np.pi / 4, 2, 2, 2)
+    P_pi_2 = Phase_ord_4(np.pi / 2, 2, 2, 2)
     subresult_2 = jnp.tensordot(P_pi_4, P_pi_2, [[3], [1]])
     subresult_2 = jnp.tensordot(subresult_2, S_U_4, [[2, 3], [0, 1]])
 
@@ -117,7 +134,7 @@ def QFT_4_qubit(bond_dim: int) -> MPO:
 
     # step 3
 
-    P_pi_2_lower = P_tensor(np.pi/2, 2, 1, 2)
+    P_pi_2_lower = Phase_ord_3(np.pi / 2, 2, 2)
     subresult = jnp.tensordot(jnp.tensordot(T_4, P_pi_2_lower, [3, 1]), H, 1)
     subresult = jnp.reshape(subresult, (bond_dim * 2, 2 * 2))
 
@@ -143,8 +160,8 @@ def main():
     # check isometry
 
     theta = 1.34
-    P_plus = P_tensor(theta, 2, 2, 2)
-    P_minus = P_tensor(-theta, 2, 2, 2)
+    P_plus = Phase_ord_4(theta, 2, 2, 2)
+    P_minus = Phase_ord_4(-theta, 2, 2, 2)
     # print(jnp.tensordot(P_plus, P_minus, [[3, 2, 1], [3, 0, 1]]))
     # print(jnp.tensordot(P_minus, P_plus, [[3, 2, 1], [3, 0, 1]]))
 
