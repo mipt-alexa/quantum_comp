@@ -5,7 +5,7 @@ import unittest
 import jax.numpy as jnp
 import numpy as np
 
-from QFT_4_qubit import QFT
+from QFT import QFT
 
 jax.config.update("jax_enable_x64", True)
 
