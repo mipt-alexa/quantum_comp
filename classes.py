@@ -184,9 +184,9 @@ class MPO:
                 self.components[i]) + '\n'
         return rep + ')'
 
-    def process(self, state: MPS) -> None:
+    def process(self, state: MPS) -> MPS:
         """
-        This special method implements the action of operator onto the MPS in place.
+        This special method implements the action of operator onto the MPS.
 
         Args:
             state: The MPS to which the operator is applied.
@@ -194,7 +194,11 @@ class MPO:
         if self.len != state.len:
             raise Exception("Ranks of the MPO and MPS do not match")
 
+        components = []
+
         for i in range(0, self.len):
-            state.components[i] = jnp.tensordot(self.components[i], state.components[i], [[1], [1]])
-            shape = state.components[i].shape
-            state.components[i] = jnp.reshape(state.components[i], (shape[0] * shape[3], shape[2], shape[1] * shape[4]))
+            state_shape = state.components[i].shape
+            oper_shape = self.components[i].shape
+            components.append(jnp.reshape(jnp.tensordot(self.components[i], state.components[i], [[1], [1]]),
+                                        (oper_shape[0] * state_shape[0], state_shape[1], oper_shape[2] * state_shape[2])))
+        return MPS(components)
