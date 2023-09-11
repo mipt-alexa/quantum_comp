@@ -1,14 +1,14 @@
+from typing import Callable
+
 import numpy as np
 
-from QFT_4_qubit import QFT_4_qubit
 import jax.numpy as jnp
 from TT_cross import TT_cross
 from helper_functions import get_tensor_from_MPS
 import matplotlib.pyplot as plt
-from classes import MPS
-
-N = 4
-POWERS = jnp.array([jnp.power(2., -n) for n in range(1, N+1)], dtype=jnp.float64)
+from classes import MPS, MPO
+from QFT import QFT
+from tests.test_QFT import reverse_operation
 
 
 def generate_sequences(n):
@@ -24,11 +24,55 @@ def generate_sequences(n):
 
 
 def sin(ind: jnp.ndarray) -> jnp.ndarray:
-    return jnp.sin(np.pi*jnp.dot(ind, jnp.tile(POWERS, 1)))
+    if len(ind.shape) == 1:
+        n = ind.shape
+    else:
+        n = ind.shape[1]
+    POWERS = jnp.array([jnp.power(2., -k) for k in range(1, n + 1)], dtype=jnp.float64)
+    return jnp.sin(3 * 2* np.pi * jnp.tensordot(ind, POWERS, 1)) * \
+           jnp.sin(2 * np.pi * jnp.tensordot(ind, POWERS, 1))
+
+
+def cos(ind: jnp.array) -> jnp.array:
+    if len(ind.shape) == 1:
+        n = ind.shape
+    else:
+        n = ind.shape[1]
+    POWERS = jnp.array([jnp.power(2., -k) for k in range(1, n + 1)], dtype=jnp.float64)
+    return jnp.cos(2 * np.pi * jnp.tensordot(ind, POWERS, 1)) + \
+           jnp.exp(- jnp.abs(jnp.tensordot(ind, POWERS, 1)))
+
+
+def const(ind):
+    return jnp.ones(ind.shape[0])
+
+
+def exp(ind):
+    n = ind.shape[1]
+    POWERS = jnp.array([jnp.power(2., -k) for k in range(1, n + 1)], dtype=jnp.float64)
+    return jnp.exp(- jnp.abs(jnp.tensordot(ind, POWERS, 1)))
+
+
+def sin_f(x):
+    return np.sin(3*2*np.pi*x) + 2 * np.sin(5*2*np.pi*x)
+
+
+def sin_squared(ind):
+    n = ind.shape[1]
+    POWERS = jnp.array([jnp.power(2., -k) for k in range(1, n + 1)], dtype=jnp.float64)
+    return jnp.sin(2 * np.pi * jnp.power(jnp.tensordot(ind, POWERS, 1), 2))
+
+
+def x(ind: jnp.ndarray) -> jnp.ndarray:
+    if len(ind.shape) == 1:
+        n = ind.shape
+    else:
+        n = ind.shape[1]
+    POWERS = jnp.array([jnp.power(2., -k) for k in range(1, n + 1)], dtype=jnp.float64)
+    return jnp.tensordot(ind, POWERS, 1)
 
 
 def get_element(mps: MPS, ind_arr: jnp.ndarray):
-
     values = []
     for j in range(len(ind_arr)):
         element = mps.components[0][:, ind_arr[j][0], :]
@@ -37,32 +81,42 @@ def get_element(mps: MPS, ind_arr: jnp.ndarray):
         values.append(float(np.real(element)))
     return values
 
-#
-# def expected_fourier(x):
-#     np.exp(2*np.pi*)
+
+def plot_ft(func: Callable, n: int):
+    N = 2 ** n
+    POWERS = jnp.array([jnp.power(2., -k) for k in range(1, n + 1)], dtype=jnp.float64)
+
+    mps = TT_cross(func, [2] * n, [2] * (n - 1))
+    print(jnp.reshape(get_tensor_from_MPS(mps), N))
+
+    qft = QFT(n, 4)
+
+    output = qft.process(mps)
+    output = jnp.reshape(get_tensor_from_MPS(output), N)
+    output = jnp.tensordot(reverse_operation(n), output, 1)
+    print(output)
+    print(output.dtype)
+
+    binary_strings = jnp.array(generate_sequences(n))
+
+    # y = np.array(np.real(get_element(sin_mps, binary_strings)))
+    x = np.array(jnp.dot(binary_strings, POWERS))
+
+    output = jnp.multiply(output, jnp.array(range(N)))
+
+    plt.stem(range(N), jnp.real(output), linefmt="r--", markerfmt="ro", label="qft real")
+    plt.stem(range(N), jnp.imag(output), linefmt="b--", markerfmt="bo", label="qft imag")
+
+    y_1 = np.fft.ifft(2 * np.cos(2 * np.pi *x) * np.sin(2 * np.pi *x), norm="ortho")
+    # plt.plot(x, sin_f(x))
+    # plt.plot(x, jnp.reshape(get_tensor_from_MPS(mps), N), label="mps")
+
+    plt.stem(range(N), np.real(y_1), linefmt="red", markerfmt=" ", label="ff  t real")
+    plt.stem(range(N), np.imag(y_1), linefmt="blue", markerfmt=" ", label="fft imag")
+    plt.xlim(0, 10)
+    plt.legend()
+    plt.show()
 
 
-qft = QFT_4_qubit()
-
-out_dims = [2] * N
-in_dims = [2] * (N - 1)
-sin_mps = TT_cross(sin, out_dims, in_dims)
-qft.process(sin_mps)
-
-
-binary_strings = jnp.array(generate_sequences(N))
-
-y = np.array(np.real(get_element(sin_mps, binary_strings)))
-x = np.array(jnp.dot(binary_strings, POWERS))
-print(x)
-y_1 = np.fft.fft(np.sin(np.pi*x))
-
-x_0 = np.linspace(0, 1 - 1/16, 16)
-print(x_0)
-y_2 = np.fft.fft(np.sin(np.pi*x_0))
-
-print(x, y)
-plt.plot(x, y)
-plt.plot(x, y_1)
-plt.plot(x_0, y_2)
-plt.show()
+if __name__ == '__main__':
+    plot_ft(sin, 6)
