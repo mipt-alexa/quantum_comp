@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, List
 
 import numpy as np
 
@@ -29,8 +29,8 @@ def sin(ind: jnp.ndarray) -> jnp.ndarray:
     else:
         n = ind.shape[1]
     POWERS = jnp.array([jnp.power(2., -k) for k in range(1, n + 1)], dtype=jnp.float64)
-    return jnp.sin(3 * 2* np.pi * jnp.tensordot(ind, POWERS, 1)) * \
-           jnp.sin(2 * np.pi * jnp.tensordot(ind, POWERS, 1))
+    return jnp.sin(2* np.pi * jnp.power(jnp.tensordot(ind, POWERS, 1), 2)) * \
+           jnp.sin(4 * np.pi * jnp.tensordot(ind, POWERS, 1))
 
 
 def cos(ind: jnp.array) -> jnp.array:
@@ -72,46 +72,46 @@ def x(ind: jnp.ndarray) -> jnp.ndarray:
     return jnp.tensordot(ind, POWERS, 1)
 
 
-def get_element(mps: MPS, ind_arr: jnp.ndarray):
+def get_element(mps: MPS, ind_arr: jnp.ndarray) -> List[float]:
+    """
+    This function extracts the elements of an MPS by index with respect to reversed entries.
+    """
+    reversed_ord = jnp.array(range(mps.len - 1, -1, -1))
+    ind_arr = ind_arr[:, reversed_ord]
+
     values = []
     for j in range(len(ind_arr)):
+
         element = mps.components[0][:, ind_arr[j][0], :]
         for i in range(1, mps.len):
             element = jnp.tensordot(element, mps.components[i][:, ind_arr[j][i], :], 1)
-        values.append(float(np.real(element)))
+        values.append(element[0][0])
     return values
 
 
-def plot_ft(func: Callable, n: int):
+def plot_ft(func: Callable, n: int, qft_bond_dim: int):
     N = 2 ** n
     POWERS = jnp.array([jnp.power(2., -k) for k in range(1, n + 1)], dtype=jnp.float64)
 
     mps = TT_cross(func, [2] * n, [2] * (n - 1))
-    print(jnp.reshape(get_tensor_from_MPS(mps), N))
 
-    qft = QFT(n, 4)
-
+    qft = QFT(n, qft_bond_dim)
     output = qft.process(mps)
-    output = jnp.reshape(get_tensor_from_MPS(output), N)
-    output = jnp.tensordot(reverse_operation(n), output, 1)
-    print(output)
-    print(output.dtype)
+
+    # output = jnp.reshape(get_tensor_from_MPS(output), [2] * n)
+    # output = jnp.transpose(output, range(n - 1, -1, -1))
+    # output = jnp.tensordot(reverse_operation(n), output, 1)
 
     binary_strings = jnp.array(generate_sequences(n))
+    y = np.array(get_element(output, binary_strings))
 
-    # y = np.array(np.real(get_element(sin_mps, binary_strings)))
-    x = np.array(jnp.dot(binary_strings, POWERS))
+    plt.stem(range(N), jnp.real(y), linefmt="r--", markerfmt="ro", label="qft real")
+    plt.stem(range(N), jnp.imag(y), linefmt="b--", markerfmt="bo", label="qft imag")
 
-    output = jnp.multiply(output, jnp.array(range(N)))
+    y_1 = np.fft.ifft(func(binary_strings), norm="ortho")
+    print(abs(y - y_1))
 
-    plt.stem(range(N), jnp.real(output), linefmt="r--", markerfmt="ro", label="qft real")
-    plt.stem(range(N), jnp.imag(output), linefmt="b--", markerfmt="bo", label="qft imag")
-
-    y_1 = np.fft.ifft(2 * np.cos(2 * np.pi *x) * np.sin(2 * np.pi *x), norm="ortho")
-    # plt.plot(x, sin_f(x))
-    # plt.plot(x, jnp.reshape(get_tensor_from_MPS(mps), N), label="mps")
-
-    plt.stem(range(N), np.real(y_1), linefmt="red", markerfmt=" ", label="ff  t real")
+    plt.stem(range(N), np.real(y_1), linefmt="red", markerfmt=" ", label="fft real")
     plt.stem(range(N), np.imag(y_1), linefmt="blue", markerfmt=" ", label="fft imag")
     plt.xlim(0, 10)
     plt.legend()
@@ -119,4 +119,4 @@ def plot_ft(func: Callable, n: int):
 
 
 if __name__ == '__main__':
-    plot_ft(sin, 6)
+    plot_ft(sin, 6, 10)
