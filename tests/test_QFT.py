@@ -43,7 +43,7 @@ def reverse_operation(order: int):
 
 def perm_mpo(n: int) -> Tuple[int, ...]:
     """
-    This function returns the permutation of indices for converting the MPO into the matrix form.
+    This function returns the permutation of indices for converting the contracted MPO into the matrix form.
     Arguments:
          n: number of qubits
     Returns:
@@ -58,9 +58,10 @@ def perm_mpo(n: int) -> Tuple[int, ...]:
     return tuple(permutation)
 
 
-def perm_bit_reverse(n: int) -> Tuple[int, ...]:
+def perm_reverse_tensor(n: int) -> Tuple[int, ...]:
     """
-    This function returns the permutation of indices for the MPS object, being the last stage of QFT.
+    This function returns the reversal permuation of the indices for a tensor of n+2 dimensions
+    representing a contracted MPS object.
     Arguments:
          n: number of qubits
     Returns:
@@ -74,7 +75,7 @@ def perm_bit_reverse(n: int) -> Tuple[int, ...]:
     return tuple(permutation)
 
 
-class TestMaxVol(unittest.TestCase):
+class TestQFT(unittest.TestCase):
     def test_isometry(self, max_ord=9, bond_dim=2):
 
         for n in range(2, max_ord):
@@ -125,7 +126,7 @@ class TestMaxVol(unittest.TestCase):
 
             qft = QFT(n, 2 ** (n - 1))
             out_state = get_tensor_from_MPS(qft.process(state))
-            out_state = jnp.reshape(jnp.transpose(out_state, perm_bit_reverse(n)), N)
+            out_state = jnp.reshape(jnp.transpose(out_state, perm_reverse_tensor(n)), N)
 
             qft_matrix = np.empty((N, N), dtype=complex)
             theta = 2 * np.pi / N
@@ -154,7 +155,7 @@ class TestMaxVol(unittest.TestCase):
 
             qft = QFT(n, 2 ** (n - 1))
             out_state = get_tensor_from_MPS(qft.process(state))
-            out_state = jnp.reshape(jnp.transpose(out_state, perm_bit_reverse(n)), N)
+            out_state = jnp.reshape(jnp.transpose(out_state, perm_reverse_tensor(n)), N)
 
             expected = jnp.fft.ifft(jnp.reshape(get_tensor_from_MPS(state), N), norm="ortho")
             jnp.set_printoptions(threshold=sys.maxsize)
