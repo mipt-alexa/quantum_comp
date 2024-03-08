@@ -168,9 +168,13 @@ class MPO:
     def __init__(self, tensors: List[jnp.ndarray]):
         """
         Args:
-            tensors: The list of tensors in which the MPO is decomposed. Each tensor is expected to have 4 indices,
-                     for the first and the last ones corresponding dimensions are expected to be equal to 1.
+            tensors: The list of tensors into which the MPO is decomposed. Each tensor is expected to have 4 indices,
+                     for the first and the last components corresponding dimensions are expected to be of size 1.
         """
+        for t in tensors:
+            if t.shape[1] != t.shape[3]:
+                raise Exception("Sizes of input and otput indices do not match")
+
         self.components = tensors
         self.len = len(tensors)
 
@@ -199,6 +203,29 @@ class MPO:
         for i in range(0, self.len):
             state_shape = state.components[i].shape
             oper_shape = self.components[i].shape
-            components.append(jnp.reshape(jnp.tensordot(self.components[i], state.components[i], [[1], [1]]),
-                                        (oper_shape[0] * state_shape[0], state_shape[1], oper_shape[2] * state_shape[2])))
+            subresult = jnp.tensordot(self.components[i], state.components[i], [[1], [1]])
+            components.append(jnp.reshape(jnp.transpose(subresult, (0, 3, 2, 1, 4)),
+                                          (oper_shape[0] * state_shape[0], state_shape[1], oper_shape[2] * state_shape[2])))
+        return MPS(components)
+
+    def inverse_process(self, state: MPS) -> MPS:
+        """
+        This method implements the action of inverse operator (with respect to the current MPO) onto the MPS.
+        Complex conjugates of operator's components are computed and output and input indices are switched.
+
+        Args:
+            state: The MPS to which the inverse operator is applied.
+        """
+
+        if self.len != state.len:
+            raise Exception("Ranks of the MPO and MPS do not match")
+
+        components = []
+
+        for i in range(0, self.len):
+            state_shape = state.components[i].shape
+            oper_shape = self.components[i].shape
+            subresult = jnp.tensordot(jnp.conj(self.components[i]), state.components[i], [[3], [1]])
+            components.append(jnp.reshape(jnp.transpose(subresult, (0, 2, 3, 1, 4)),
+                                          (oper_shape[0] * state_shape[0], state_shape[1], oper_shape[2] * state_shape[2])))
         return MPS(components)

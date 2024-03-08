@@ -10,7 +10,7 @@ from TT_cross import TT_cross
 jax.config.update("jax_enable_x64", True)
 
 
-def hilbert_tensor(ind_arr):
+def hilbert_tensor(ind_arr: jnp.ndarray) -> jnp.ndarray:
     if len(ind_arr.shape) == 1:
         return jnp.array(1 / (jnp.sum(ind_arr) + len(ind_arr)), dtype=jnp.float64)
 

@@ -42,7 +42,7 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
     row_inds = jnp.asarray(row_inds, dtype=int)
     B = B[row_inds]
 
-    i, j = jnp.unravel_index(jnp.argmax(B), B.shape) # 2d-indices of absolute maximum
+    i, j = jnp.unravel_index(jnp.argmax(jnp.abs(B)), B.shape) # 2d-indices of absolute maximum
 
     e = jnp.identity(n)
     e_r = jnp.identity(r)
@@ -55,7 +55,7 @@ def maxvol(matrix: jnp.ndarray, tol: float = 1e-3) -> jnp.ndarray:
 
         B -= 1 / B[i, j] * jnp.tensordot(B[:, j] - e[j] + e[i], B[i, :] - e_r[j], 0)
 
-        i, j = jnp.unravel_index(jnp.argmax(B), B.shape)
+        i, j = jnp.unravel_index(jnp.argmax(jnp.abs(B)), B.shape)
 
         steps += 1
         if steps == jnp.power(n, r + 1):
