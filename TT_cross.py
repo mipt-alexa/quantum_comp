@@ -1,4 +1,5 @@
 import copy
+import time
 import timeit
 import jax.config
 
@@ -6,7 +7,6 @@ from maxvol import maxvol
 from helper_functions import *
 
 from typing import List, Callable
-
 
 jax.config.update("jax_enable_x64", True)
 
@@ -41,8 +41,9 @@ def component_indices(I_k, J_k, shape):
 #     return jnp.array(new_ind_seq)
 
 
-def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], inner_dims: List[int], max_iter: int = 100,
-             tol: float = 1e-2, maxvol_tol: float = 1e-1) -> MPS:
+def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], inner_dims: List[int],
+             max_iter: int = 100, min_iter: int = 1,
+             tol: float = 1e-3, maxvol_tol: float = 1e-1) -> MPS:
     mps_len = len(out_dims)
 
     if mps_len != len(inner_dims) + 1:
@@ -53,7 +54,20 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
     in_dims.insert(0, 1)
     in_dims.append(1)
 
+    if in_dims[1] > out_dims[0]:
+        in_dims[1] = out_dims[0]
+    if in_dims[-2] > out_dims[-1]:
+        in_dims[-2] = out_dims[-1]
+
     shapes = [()] * mps_len
+    for k in range(mps_len):
+        if in_dims[k] * out_dims[k] < in_dims[k + 1]:
+            in_dims[k+1] = in_dims[k] * out_dims[k]
+
+    for k in range(mps_len - 1, -1, -1):
+        if in_dims[k] > out_dims[k] * in_dims[k+1]:
+            in_dims[k] = out_dims[k] * in_dims[k+1]
+
     for k in range(mps_len):
         shapes[k] = (in_dims[k], out_dims[k], in_dims[k + 1])
 
@@ -81,7 +95,7 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
     reshape_time = 0
     ind_update_time = 0
 
-    while iter < max_iter and (MPS(v) - MPS(v_prev)).norm() > tol * MPS(v).norm():
+    while iter < min_iter or (MPS(v) - MPS(v_prev)).norm() > tol * MPS(v).norm():
         print("iter", iter)
         v_prev = v
 
@@ -104,6 +118,7 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
             if k < mps_len - 1:
 
                 Q, R = jnp.linalg.qr(jnp.reshape(v[k], (shapes[k][0] * shapes[k][1], shapes[k][2])))
+
                 t_3 = timeit.default_timer()
 
                 new_inds = maxvol(Q, tol=maxvol_tol)
@@ -112,6 +127,7 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
                 maxvol_time += t_4 - t_3
 
                 Q_hat = Q[new_inds]
+
                 v[k] = jnp.reshape(jnp.tensordot(Q, jnp.linalg.inv(Q_hat), 1), shapes[k])
 
                 t_5 = timeit.default_timer()
@@ -146,7 +162,6 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
                 t_3 = timeit.default_timer()
 
                 v[k] = jnp.reshape(tensor(indices), (in_dims[k], out_dims[k], in_dims[k + 1]))
-
                 tensor_return_time += timeit.default_timer() - t_3
 
             t_1 = timeit.default_timer()
@@ -194,4 +209,4 @@ def TT_cross(tensor: Callable[[jnp.ndarray], jnp.ndarray], out_dims: List[int], 
     # # print("tensor return time", tensor_return_time)
     # print("linalg operations", linalg_operation_time)
 
-    return MPS(v) #, update_time, linalg_operation_time, set_time, maxvol_time, reshape_time, ind_update_time
+    return MPS(v)  # , update_time, linalg_operation_time, set_time, maxvol_time, reshape_time, ind_update_time
